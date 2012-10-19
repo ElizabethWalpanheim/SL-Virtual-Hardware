@@ -1,4 +1,11 @@
-//
+/*
+  LSCAD LSL dynamic logic simulator
+  (C) Elizabeth Walpanheim, 2012
+  The code may be licensed under the terms of GNU General Public License version 2
+
+  logic element script
+*/
+
 integer debug = 0;
 integer review = 12;
 integer CtrlChan = 7829;
