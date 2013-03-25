@@ -16,7 +16,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-string s_rev = "rev E build 106";
+string s_rev = "rev E build 107";
 // REVIEW E - optimized for small hand-written programs and maximum performance
 // in single-script usage.
 
@@ -40,6 +40,7 @@ integer proglen;
 integer busy;
 integer PLi;
 integer zVal;
+integer MP_Memtop;
 integer MP_LastAddr; //memory pack enhancer
 integer MP_Original; //memory pack enhancer
 
@@ -141,7 +142,7 @@ integer expand(integer newtop)
     if (newtop < i) return 1;
     i = newtop - i + 1;
     while (i--) tape += [0];
-    debug("new tape length="+(string)llGetListLength(tape)+"; free="+(string)llGetFreeMemory());
+    debug("new tape length="+(string)llGetListLength(tape)+"; bytes free="+(string)llGetFreeMemory());
     return 1;
 }
 
@@ -152,13 +153,15 @@ integer load(integer x)
         return 0;
     }
     MP_LastAddr = x;
+    integer m = (x % 4) * 8;
+    x = x / 4;
     if (x >= llGetListLength(tape)) {
         //debug("Accessing (READ) a cell beyound current limit, returning zero");
         MP_Original = 0;
         return 0;
     }
     MP_Original = llList2Integer(tape,x);
-    x = MP_Original >> ((x%4)*8);
+    x = MP_Original >> m;
     return (x & 0x000000FF);
 }
 
@@ -169,9 +172,10 @@ integer store(integer val, integer addr)
         return 0;
     }
     if (MP_LastAddr != addr) load(addr); //do it before possibly expanding to elliminate one List access inside load()
-    if (addr >= llGetListLength(tape)) {
+    integer y = addr / 4;
+    if (y >= llGetListLength(tape)) {
         //debug("Accessing (WRITE) a cell beyound current limit, expanding...");
-        if (expand(addr))
+        if (expand(y))
             return(store(val,addr));
         else {
             error("Can't expand the tape!");
@@ -179,10 +183,11 @@ integer store(integer val, integer addr)
         }
     }
     //TODO: clean it!
-    integer y = (addr % 4) * 8;
+    y = (addr % 4) * 8;
     addr = ~(0x000000FF << y);
     MP_Original = (MP_Original & addr) | (val << y);
-    tape = llListReplaceList(tape,[MP_Original],MP_LastAddr,MP_LastAddr);
+    addr = MP_LastAddr / 4;
+    tape = llListReplaceList(tape,[MP_Original],addr,addr);
     return 1;
 }
 
@@ -282,6 +287,8 @@ init()
 {
     busy = 0;
     tape = [];
+    MP_Memtop = 0;
+    MP_LastAddr = -1;
     ptr = 0;
     IP = 0;
     currop = -1;
