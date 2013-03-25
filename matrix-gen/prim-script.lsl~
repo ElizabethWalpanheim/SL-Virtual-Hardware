@@ -1,0 +1,45 @@
+integer chan = -113730;
+integer loadPin = 68101201;
+
+default
+{
+    state_entry()
+    {
+        llListen(chan,"","","");
+        llSetRemoteScriptAccessPin(loadPin);
+    }
+
+    on_rez(integer p)
+    {
+        llResetScript();
+    }
+
+    listen(integer ch, string nm, key id, string mg)
+    {
+        if (llGetOwnerKey(id) != llGetOwner()) return;
+        list vl = llParseString2List(mg,["|"],[]);
+        string vs = llList2String(vl,0);
+        integer i;
+        vector v;
+        if (vs == "setcolor") {
+            v = (vector)llList2String(vl,1);
+            llSetLinkColor(LINK_THIS,v,ALL_SIDES);
+        } else if (vs == "setsize") {
+            v = (vector)llList2String(vl,1);
+            llSetScale(v);
+        } else if (vs == "getsize") {
+            llShout(chan,"size|"+(string)llGetScale());
+        } else if (vs == "setpos") {
+            v = (vector)llList2String(vl,1);
+            llSetPos(v);
+        } else if (vs == "setname") {
+            llSetObjectName(llList2String(vl,1));
+        } else if (vs == "setdesc") {
+            llSetPrimitiveParams([PRIM_DESC,llList2String(vl,1)]);
+        } else if (vs == "done") {
+            llRemoveInventory(llGetScriptName());
+            llSleep(1);
+            return;
+        }
+    }
+}
