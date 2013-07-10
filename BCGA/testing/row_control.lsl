@@ -1,16 +1,22 @@
 // (C) Elizabeth Walpanheim, 2012-2013
 // License GPL
-// rev 20130630-01
+// rev 20130704-01
 
 integer NumCols = 5;
 integer NumSides = 8;
 integer access_pin = 68101201;
-key Key_Row_Control = "01010101-0000-0000-0000-123456780aa1";
-key Key_Cell_Control = "01010101-0000-0000-0000-123456780bb2";
 string CellPrefix = "gnd";
 integer CtlPrefixLen = 3;
 float tTau = 0.6;
+integer verbose = 1;
 
+key Key_Row_Control = "01010101-0000-0000-0000-123456780aa1";
+key Key_Cell_Control = "01010101-0000-0000-0000-123456780bb2";
+key Key_Op_FullDelete = "01010101-0000-fffa-ffff-000000000004";
+/*
+key Key_Row_Pixels = "01010101-1111-1111-0000-aaaaaaa80000";
+key Key_Row_Colors = "01010101-1111-1111-0000-bbbbbbb80000";
+*/
 integer num;
 integer addr_low;
 integer addr_hi;
@@ -25,7 +31,8 @@ glow(float f)
 
 out(string str)
 {
-    llOwnerSay("ROWcontroller #"+(string)num+": "+str);
+    if (verbose)
+        llOwnerSay("ROWcontroller #"+(string)num+": "+str);
 }
 
 integer ispresent(string nm)
@@ -42,12 +49,13 @@ deploy(string name)
         llRemoteLoadScriptPin(llGetLinkKey(llList2Integer(targs,i)),name,access_pin,1,0);
     glow(0);
     out("deploy done!");
-    llRemoveInventory(name);
+//    llRemoveInventory(name);
 }
 
-dirout(string str)
+dirout(string str, integer type)
 {
     list vals = llParseString2List(str,["|"],[]);
+    str = "";
     integer m = llGetListLength(vals);
     integer i;
     integer j;
@@ -61,14 +69,14 @@ dirout(string str)
             if (n < m) vs += llList2String(vals,n) + "|";
             n++;
         }
-        llMessageLinked(llList2Integer(targs,i),0,vs,Key_Cell_Control);
+        llMessageLinked(llList2Integer(targs,i),type,vs,Key_Cell_Control);
     }
 }
 
-direct(integer col, string str)
+direct(integer col, string str, integer type)
 {
     if ((col < 0) || (col >= NumCols)) return;
-    llMessageLinked(llList2Integer(targs,col),0,str,Key_Cell_Control);
+    llMessageLinked(llList2Integer(targs,col),type,str,Key_Cell_Control);
 }
 
 
@@ -116,14 +124,21 @@ default
         if (lstr == "RESET") llResetScript();
         else if (lnum == num) {
             list l;
+            integer tp = 1;
             string c = llGetSubString(lstr,0,0);
             string a = llGetSubString(lstr,1,-1);
-            if (c == "!") dirout(a);
-            else if (c == "$") {
+            if (c == "@") {
+                tp = 2;
+                c = llGetSubString(lstr,1,1);
+                a = llGetSubString(lstr,2,-1);
+            }
+            if (c == "!") {
+                dirout(a,tp);
+            } else if (c == "$") {
                 l = llParseString2List(a,["%"],[]);
                 if (llGetListLength(l) < 2) return;
                 a = llList2String(l,1);
-                direct((integer)(llList2String(l,0)),a);
+                direct((integer)(llList2String(l,0)),a,tp);
             } else {
                 l = llParseString2List(lstr,["|"],[]);
                 c = llList2String(l,0);
@@ -131,6 +146,12 @@ default
                 else a = "";
                 if ((c == "DEPLOY") && (ispresent(a))) deploy(a);
                 else if ((c == "REMSCR") && (ispresent(a))) llRemoveInventory(a);
+                else if (c == "SELFDELETE") {
+                    out("self-delete...");
+                    llRemoveInventory(llGetScriptName());
+                    state off;
+                    return;
+                }
             }
         }
     }
@@ -150,6 +171,13 @@ default
             glow(1);
         } else if (a & CHANGED_LINK)
             llResetScript();
+    }
+}
+
+state off
+{
+    state_entry()
+    {
     }
 }
 

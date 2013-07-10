@@ -1,8 +1,7 @@
 // (C) Elizabeth Walpanheim, 2012-2013
 // License GPL
-// rev 20130630-01
+// rev 20130704-01
 
-key Key_Cell_Control = "01010101-0000-0000-0000-123456780bb2";
 integer NumSides = 8;
 integer qty = 256;
 list uids = [
@@ -10,6 +9,9 @@ list uids = [
 "7655546b-5b38-8d96-60c9-b55ff8357f49",
 "8f4bbdb6-5e48-8eee-2297-7a4277f91805",
 "249ccf33-509c-e04c-cada-feb2b18b5348" ];
+
+key Key_Cell_Control = "01010101-0000-0000-0000-123456780bb2";
+key Key_Op_Shutdown = "01010101-0000-fffa-ffff-000000000001";
 
 integer ntxd;
 integer qdr;
@@ -34,6 +36,18 @@ setn(integer side, integer x)
     llSetLinkPrimitiveParamsFast(LINK_THIS,[PRIM_TEXTURE,side,uid,<size,size,0>,off,0]);
 }
 
+vector retcol(string col)
+{
+    integer c = (integer)col;
+    vector r;
+    r.z = (float)(c & 0xFF) / 255.0;
+    c = c >> 8;
+    r.y = (float)(c & 0xFF) / 255.0;
+    c = c >> 8;
+    r.x = (float)(c & 0xFF) / 255.0;
+    return r;
+}
+
 default
 {
     state_entry()
@@ -47,6 +61,11 @@ default
 
     link_message(integer sender, integer num, string str, key id)
     {
+        if (id == Key_Op_Shutdown) {
+            llRemoveInventory(llGetScriptName());
+            state off; // to get rid of possible actions right after Shutdown command
+            return;
+        }
         if (id != Key_Cell_Control) return;
         if (str == "RESET") {
             llResetScript();
@@ -55,8 +74,20 @@ default
         list l = llParseString2List(str,["|"],[]);
         integer i;
         integer n = llGetListLength(l);
-        for (i=0; ((i<NumSides) && (i<n)); i++)
-            setn(i,(integer)llList2String(l,i));
+        if (num == 1) {
+            for (i=0; ((i<NumSides) && (i<n)); i++)
+                setn(i,(integer)llList2String(l,i));
+        } else if (num == 2) {
+            for (i=0; i<NumSides; i++)
+                llSetLinkPrimitiveParamsFast(LINK_THIS,[PRIM_COLOR,i,retcol(llList2String(l,i)),1.0]);
+        }
+    }
+}
+
+state off
+{
+    state_entry()
+    {
     }
 }
 
